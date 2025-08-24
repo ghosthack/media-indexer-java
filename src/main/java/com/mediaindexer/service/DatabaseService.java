@@ -182,6 +182,7 @@ public class DatabaseService {
         String sql = """
             INSERT OR REPLACE INTO thumbnails (media_file_id, thumbnail_path, width, height, orientation, format, created_at, failed, error_message, error_type)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
         """;
         
         try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -195,13 +196,11 @@ public class DatabaseService {
             stmt.setBoolean(8, thumbnail.isFailed());
             stmt.setString(9, thumbnail.getErrorMessage());
             stmt.setString(10, thumbnail.getErrorType());
-            
-            int affectedRows = stmt.executeUpdate();
-            if (affectedRows > 0) {
-                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        thumbnail.setId(generatedKeys.getLong(1));
-                    }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    long id = rs.getLong("id");
+                    thumbnail.setId(id);
                 }
             }
         }
