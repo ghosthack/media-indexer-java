@@ -14,7 +14,7 @@ A cross-platform media indexing solution designed to traverse specified director
 
 ## Supported Formats
 
-- **Images**: JPEG, PNG, BMP, GIF, WebP, HEIC, HEIF, TIFF, DNG, RAW, CR2, NEF, ARW
+- **Images**: JPEG, PNG, BMP, GIF, WebP, HEIF, TIFF, DNG, RAW, CR2, NEF, ARW
 - **Videos**: MP4, MOV, AVI, MKV, WebM, M4V
 
 ## Building
@@ -131,18 +131,18 @@ performance:
 
 ## Command Line Options
 
-| Option | Description |
-|--------|-------------|
-| `--bootstrap` | Create a default configuration file |
-| `--add-root PATH` | Add a directory to scan |
-| `--fast` | Scan filesystem using quick hashes |
-| `--content-hash` | Generate full content hashes |
-| `--scan-full` | Full scan with both hash types |
-| `--thumbnails` | Generate thumbnails and mini thumbnails |
-| `--html` | Generate HTML index pages |
-| `-c, --config PATH` | Specify configuration file path |
-| `-h, --help` | Show help message |
-| `-V, --version` | Show version information |
+| Option              | Description                             |
+|---------------------|-----------------------------------------|
+| `--bootstrap`       | Create a default configuration file     |
+| `--add-root PATH`   | Add a directory to scan                 |
+| `--fast`            | Scan filesystem using quick hashes      |
+| `--content-hash`    | Generate full content hashes            |
+| `--scan-full`       | Full scan with both hash types          |
+| `--thumbnails`      | Generate thumbnails and mini thumbnails |
+| `--html`            | Generate HTML index pages               |
+| `-c, --config PATH` | Specify configuration file path         |
+| `-h, --help`        | Show help message                       |
+| `-V, --version`     | Show version information                |
 
 ## Workflow
 
