@@ -1,2 +1,7 @@
 /media-index.db
 /media-indexer.log
+/dependency-reduced-pom.xml
+/media-indexer-config.yaml
+/media-indexer-config.yaml.example
+/output/
+/target/
