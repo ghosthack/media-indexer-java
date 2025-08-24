@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class HtmlIndexService {
     private static final Logger logger = LoggerFactory.getLogger(HtmlIndexService.class);
@@ -94,9 +95,10 @@ public class HtmlIndexService {
     
     private int estimateTotalPages(List<MiniThumbnail> miniThumbnails, long maxPageSize) {
         if (miniThumbnails.isEmpty()) return 1;
-        
+
+        // FIXME need to fix the null base64Data case here, this is due no thumbnail and no graceful handling
         long averageSize = miniThumbnails.stream()
-            .mapToLong(mt -> mt.getBase64Data().length())
+            .mapToLong(mt -> Optional.ofNullable(mt.getBase64Data()).orElse("").length())
             .sum() / miniThumbnails.size();
         
         long estimatedItemsPerPage = maxPageSize / (averageSize + 500); // 500 bytes for HTML overhead
@@ -106,8 +108,9 @@ public class HtmlIndexService {
     private String createThumbnailHtml(MiniThumbnail miniThumbnail, MediaFile mediaFile) {
         String fileName = Paths.get(mediaFile.getFilePath()).getFileName().toString();
         String encodedPath = encodeFileUri(mediaFile.getFilePath());
-        String base64Image = "data:image/" + miniThumbnail.getFormat().toLowerCase() + 
-                           ";base64," + miniThumbnail.getBase64Data();
+        // FIXME need to fix the null format and base64Data, this is due no thumbnail and no graceful handling
+        String base64Image = "data:image/" + Optional.ofNullable(miniThumbnail.getFormat()).orElse("").toLowerCase() +
+                           ";base64," + Optional.ofNullable(miniThumbnail.getBase64Data()).orElse("");
         
         return String.format(
             "<div class=\"thumbnail-container\">" +
