@@ -3,7 +3,6 @@ package com.mediaindexer.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.TypeDescription;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.inspector.TagInspector;
@@ -19,7 +18,7 @@ public class ConfigManager {
     private static final Logger logger = LoggerFactory.getLogger(ConfigManager.class);
     private static final String DEFAULT_CONFIG_FILE = "media-indexer-config.yaml";
     
-    public static MediaIndexerConfig loadConfig(String configPath) throws IOException {
+    public static MediaIndexerConfig loadConfig(String configPath) {
         Path path = Paths.get(configPath != null ? configPath : DEFAULT_CONFIG_FILE);
         
         if (!Files.exists(path)) {

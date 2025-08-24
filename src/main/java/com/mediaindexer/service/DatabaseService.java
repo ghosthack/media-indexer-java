@@ -17,7 +17,7 @@ public class DatabaseService {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseService.class);
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
-    private Connection connection;
+    private final Connection connection;
     
     public DatabaseService(String dbPath) throws SQLException {
         this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
@@ -238,7 +238,7 @@ public class DatabaseService {
     
     public List<MiniThumbnail> getAllMiniThumbnails() throws SQLException {
         String sql = """
-            SELECT mt.*, mf.file_path 
+            SELECT mt.*, mf.file_path
             FROM mini_thumbnails mt
             JOIN media_files mf ON mt.media_file_id = mf.id
             ORDER BY mf.file_path
@@ -301,7 +301,7 @@ public class DatabaseService {
     
     public List<Thumbnail> getFailedThumbnails() throws SQLException {
         String sql = """
-            SELECT t.*, mf.file_path 
+            SELECT t.*, mf.file_path
             FROM thumbnails t
             JOIN media_files mf ON t.media_file_id = mf.id
             WHERE t.failed = 1
@@ -321,7 +321,7 @@ public class DatabaseService {
     
     public List<MiniThumbnail> getFailedMiniThumbnails() throws SQLException {
         String sql = """
-            SELECT mt.*, mf.file_path 
+            SELECT mt.*, mf.file_path
             FROM mini_thumbnails mt
             JOIN media_files mf ON mt.media_file_id = mf.id
             WHERE mt.failed = 1

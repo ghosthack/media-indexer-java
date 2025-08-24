@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.HashSet;
@@ -53,7 +52,7 @@ public class FileScanner {
                    scannedCount.get(), processedCount.get());
     }
     
-    public void scanDirectory(String rootPath) throws IOException, SQLException {
+    public void scanDirectory(String rootPath) throws IOException {
         Path root = Paths.get(rootPath).toAbsolutePath();
         
         if (!Files.exists(root)) {

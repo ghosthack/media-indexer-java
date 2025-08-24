@@ -69,7 +69,7 @@ public class MediaIndexerCommand implements Callable<Integer> {
     }
     
     @Override
-    public Integer call() throws Exception {
+    public Integer call() {
         try {
             logger.info("Media Indexer starting...");
             

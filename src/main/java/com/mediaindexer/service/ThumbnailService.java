@@ -1,7 +1,6 @@
 package com.mediaindexer.service;
 
 import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.Directory;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.mediaindexer.config.MediaIndexerConfig;
@@ -217,16 +216,15 @@ public class ThumbnailService {
         
         double scale = (double) maxHeight / originalHeight;
         int newWidth = (int) (originalWidth * scale);
-        int newHeight = maxHeight;
-        
-        BufferedImage miniThumbnail = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB);
+
+        BufferedImage miniThumbnail = new BufferedImage(newWidth, maxHeight, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = miniThumbnail.createGraphics();
         
         g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
-        g2d.drawImage(original, 0, 0, newWidth, newHeight, null);
+        g2d.drawImage(original, 0, 0, newWidth, maxHeight, null);
         g2d.dispose();
         
         return miniThumbnail;

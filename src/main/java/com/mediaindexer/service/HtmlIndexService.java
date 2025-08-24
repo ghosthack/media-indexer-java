@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,31 +61,30 @@ public class HtmlIndexService {
         long currentPageSize = 0;
         StringBuilder currentPageContent = new StringBuilder();
         int totalPages = estimateTotalPages(miniThumbnails, maxPageSize);
-        
-        for (int i = 0; i < miniThumbnails.size(); i++) {
-            MiniThumbnail miniThumbnail = miniThumbnails.get(i);
+
+        for (MiniThumbnail miniThumbnail : miniThumbnails) {
             MediaFile mediaFile = mediaFileMap.get(miniThumbnail.getMediaFileId());
-            
+
             if (mediaFile == null) {
                 logger.warn("Media file not found for mini thumbnail ID: {}", miniThumbnail.getId());
                 continue;
             }
-            
+
             String thumbnailHtml = createThumbnailHtml(miniThumbnail, mediaFile);
             long thumbnailSize = thumbnailHtml.getBytes(StandardCharsets.UTF_8).length;
-            
-            if (currentPageSize + thumbnailSize > maxPageSize && currentPageContent.length() > 0) {
+
+            if (currentPageSize + thumbnailSize > maxPageSize && !currentPageContent.isEmpty()) {
                 writeHtmlPage(currentPageContent.toString(), pageNumber, totalPages);
                 pageNumber++;
                 currentPageContent = new StringBuilder();
                 currentPageSize = 0;
             }
-            
+
             currentPageContent.append(thumbnailHtml);
             currentPageSize += thumbnailSize;
         }
         
-        if (currentPageContent.length() > 0) {
+        if (!currentPageContent.isEmpty()) {
             writeHtmlPage(currentPageContent.toString(), pageNumber, totalPages);
         }
         
@@ -96,35 +94,103 @@ public class HtmlIndexService {
     private int estimateTotalPages(List<MiniThumbnail> miniThumbnails, long maxPageSize) {
         if (miniThumbnails.isEmpty()) return 1;
 
-        // FIXME need to fix the null base64Data case here, this is due no thumbnail and no graceful handling
-        long averageSize = miniThumbnails.stream()
-            .mapToLong(mt -> Optional.ofNullable(mt.getBase64Data()).orElse("").length())
-            .sum() / miniThumbnails.size();
-        
-        long estimatedItemsPerPage = maxPageSize / (averageSize + 500); // 500 bytes for HTML overhead
+        // More robust estimate: consider only present thumbnails; fall back to a small default size
+        long totalSize = 0;
+        long countWithData = 0;
+        for (MiniThumbnail mt : miniThumbnails) {
+            String data = (mt != null) ? mt.getBase64Data() : null;
+            if (data != null && !data.isBlank() && !mt.isFailed()) {
+                totalSize += data.length();
+                countWithData++;
+            }
+        }
+        long averageSize = (countWithData > 0 ? totalSize / countWithData : 600); // default small average
+        long estimatedItemsPerPage = Math.max(1, maxPageSize / (averageSize + 500)); // 500 bytes for HTML overhead
         return (int) Math.ceil((double) miniThumbnails.size() / estimatedItemsPerPage);
     }
     
     private String createThumbnailHtml(MiniThumbnail miniThumbnail, MediaFile mediaFile) {
-        String fileName = Paths.get(mediaFile.getFilePath()).getFileName().toString();
-        String encodedPath = encodeFileUri(mediaFile.getFilePath());
-        // FIXME need to fix the null format and base64Data, this is due no thumbnail and no graceful handling
-        String base64Image = "data:image/" + Optional.ofNullable(miniThumbnail.getFormat()).orElse("").toLowerCase() +
-                           ";base64," + Optional.ofNullable(miniThumbnail.getBase64Data()).orElse("");
-        
-        return String.format(
-            "<div class=\"thumbnail-container\">" +
-            "<a href=\"%s\" title=\"%s\" tabindex=\"0\">" +
-            "<img src=\"%s\" alt=\"%s\" width=\"%d\" height=\"%d\" loading=\"lazy\" />" +
-            "</a>" +
-            "</div>\n",
-            encodedPath,
-            escapeHtml(fileName),
-            base64Image,
-            escapeHtml(fileName),
-            miniThumbnail.getWidth(),
-            miniThumbnail.getHeight()
-        );
+        // Defensive checks
+        if (mediaFile == null) {
+            logger.warn("createThumbnailHtml called with null mediaFile");
+            return "";
+        }
+
+        String rawPath = mediaFile.getFilePath();
+        String fileName = "";
+        if (rawPath != null && !rawPath.isBlank()) {
+            try {
+                Path p = Paths.get(rawPath);
+                Path name = p.getFileName();
+                fileName = (name != null) ? name.toString() : rawPath;
+            } catch (Exception e) {
+                // If the path is malformed for the platform, fall back to raw string
+                logger.debug("Failed to derive file name from path: {}", rawPath, e);
+                fileName = rawPath;
+            }
+        }
+
+        String encodedPath = "";
+        if (rawPath != null && !rawPath.isBlank()) {
+            encodedPath = encodeFileUri(rawPath);
+        }
+
+        // Determine if we have a valid inline thumbnail to render
+        boolean hasImage = false;
+        String base64Image = "";
+        int width = 0;
+        int height = 0;
+
+        if (miniThumbnail != null && !miniThumbnail.isFailed()) {
+            String format = Optional.ofNullable(miniThumbnail.getFormat()).orElse("").toLowerCase();
+            String base64 = Optional.ofNullable(miniThumbnail.getBase64Data()).orElse("");
+            hasImage = !format.isBlank() && !base64.isBlank();
+
+            if (hasImage) {
+                base64Image = "data:image/" + format + ";base64," + base64;
+                width = miniThumbnail.getWidth();
+                height = miniThumbnail.getHeight();
+            }
+        }
+
+        String safeTitle = escapeHtml(fileName);
+        String safeHref = escapeHtml(encodedPath);
+
+        if (hasImage) {
+            StringBuilder imgTag = new StringBuilder();
+            imgTag.append("<img src=\"").append(base64Image).append("\" alt=\"").append(safeTitle).append("\"");
+            if (width > 0) {
+                imgTag.append(" width=\"").append(width).append("\"");
+            }
+            if (height > 0) {
+                imgTag.append(" height=\"").append(height).append("\"");
+            }
+            imgTag.append(" loading=\"lazy\" />");
+
+            return String.format(
+                "<div class=\"thumbnail-container\">" +
+                "<a href=\"%s\" title=\"%s\">" +
+                "%s" +
+                "</a>" +
+                "</div>\n",
+                safeHref,
+                safeTitle,
+                imgTag
+            );
+        } else {
+            // Textual fallback; still make it clickable if we have a path
+            String linkContent = safeTitle.isBlank() ? "Open file" : safeTitle;
+            return String.format(
+                "<div class=\"thumbnail-container\">" +
+                "<a href=\"%s\" title=\"%s\">" +
+                "<span>%s</span>" +
+                "</a>" +
+                "</div>\n",
+                safeHref,
+                safeTitle,
+                linkContent
+            );
+        }
     }
     
     private void writeHtmlPage(String content, int pageNumber, int totalPages) throws IOException {
@@ -157,12 +223,12 @@ public class HtmlIndexService {
                         padding: 20px;
                         background-color: #f5f5f5;
                     }
-                    
+        
                     .header {
                         text-align: center;
                         margin-bottom: 20px;
                     }
-                    
+
                     .navigation {
                         text-align: center;
                         margin: 20px 0;
@@ -171,7 +237,7 @@ public class HtmlIndexService {
                         border-radius: 5px;
                         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
                     }
-                    
+
                     .navigation a {
                         text-decoration: none;
                         color: #007bff;
@@ -181,17 +247,17 @@ public class HtmlIndexService {
                         border-radius: 3px;
                         display: inline-block;
                     }
-                    
+
                     .navigation a:hover {
                         background-color: #007bff;
                         color: white;
                     }
-                    
+
                     .navigation a.current {
                         background-color: #007bff;
                         color: white;
                     }
-                    
+
                     .gallery {
                         display: grid;
                         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -199,7 +265,7 @@ public class HtmlIndexService {
                         max-width: 1200px;
                         margin: 0 auto;
                     }
-                    
+
                     .thumbnail-container {
                         background-color: white;
                         border-radius: 5px;
@@ -207,33 +273,33 @@ public class HtmlIndexService {
                         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
                         transition: transform 0.2s ease;
                     }
-                    
+
                     .thumbnail-container:hover {
                         transform: scale(1.05);
                     }
-                    
+
                     .thumbnail-container img {
                         width: 100%%;
                         height: auto;
                         border-radius: 3px;
                     }
-                    
+
                     .thumbnail-container a {
                         display: block;
                         text-decoration: none;
                     }
-                    
+
                     .thumbnail-container a:focus {
                         outline: 2px solid #007bff;
                         outline-offset: 2px;
                     }
-                    
+
                     @media (max-width: 768px) {
                         .gallery {
                             grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
                             gap: 8px;
                         }
-                        
+
                         .navigation a {
                             margin: 5px;
                             padding: 6px 12px;
@@ -247,15 +313,15 @@ public class HtmlIndexService {
                     <h1>Media Index</h1>
                     <p>Page %d of %d</p>
                 </div>
-                
+
                 %s
-                
+
                 <div class="gallery">
                     %s
                 </div>
-                
+
                 %s
-                
+
                 <div style="text-align: center; margin-top: 40px; color: #666; font-size: 14px;">
                     <p>Generated by Media Indexer</p>
                 </div>
@@ -318,21 +384,25 @@ public class HtmlIndexService {
             config.getHtml().getIndexFileName() : 
             String.format("index-page-%d.html", pageNumber);
     }
-    
+
     private String encodeFileUri(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return "";
+        }
         try {
             Path path = Paths.get(filePath);
-            StringBuilder encodedPath = new StringBuilder("file://");
-            
-            for (int i = 0; i < path.getNameCount(); i++) {
-                if (i > 0) encodedPath.append("/");
-                encodedPath.append(URLEncoder.encode(path.getName(i).toString(), StandardCharsets.UTF_8));
-            }
-            
-            return encodedPath.toString();
+            return path.toUri().toString();
         } catch (Exception e) {
             logger.warn("Failed to encode file URI: {}", filePath, e);
-            return "file://" + filePath;
+            // Fallback: normalize slashes and ensure at least a file URI prefix
+            String normalized = filePath.replace("\\", "/");
+            if (normalized.startsWith("//")) { // UNC-like
+                return "file:" + normalized;
+            }
+            if (normalized.startsWith("/")) {
+                return "file://" + normalized;
+            }
+            return "file:///" + normalized;
         }
     }
     

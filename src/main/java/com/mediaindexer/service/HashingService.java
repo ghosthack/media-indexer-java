@@ -115,7 +115,7 @@ public class HashingService {
             if (file.getContentHash() != null) {
                 List<MediaFile> duplicates = databaseService.findMediaFilesByQuickHash(file.getQuickHash());
                 if (duplicates.size() > 1) {
-                    if (duplicateGroups == 0 || duplicateGroups % 10 == 0) {
+                    if (duplicateGroups % 10 == 0) {
                         logger.info("Found duplicate group {} with {} files (first: {})", 
                                    duplicateGroups + 1, duplicates.size(), file.getFilePath());
                     }
