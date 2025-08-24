@@ -399,4 +399,82 @@ public class DatabaseService {
         }
         return 0;
     }
+    
+    public long getQuickHashDuplicateCount() throws SQLException {
+        String sql = """
+            SELECT COUNT(*) FROM (
+                SELECT quick_hash
+                FROM media_files
+                WHERE quick_hash IS NOT NULL
+                GROUP BY quick_hash
+                HAVING COUNT(*) > 1
+            ) AS duplicates
+        """;
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        return 0;
+    }
+    
+    public long getContentHashDuplicateCount() throws SQLException {
+        String sql = """
+            SELECT COUNT(*) FROM (
+                SELECT content_hash
+                FROM media_files
+                WHERE content_hash IS NOT NULL
+                GROUP BY content_hash
+                HAVING COUNT(*) > 1
+            ) AS duplicates
+        """;
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        return 0;
+    }
+    
+    public long getQuickHashDuplicateFileCount() throws SQLException {
+        String sql = """
+            SELECT COUNT(*) FROM media_files
+            WHERE quick_hash IN (
+                SELECT quick_hash
+                FROM media_files
+                WHERE quick_hash IS NOT NULL
+                GROUP BY quick_hash
+                HAVING COUNT(*) > 1
+            )
+        """;
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        return 0;
+    }
+    
+    public long getContentHashDuplicateFileCount() throws SQLException {
+        String sql = """
+            SELECT COUNT(*) FROM media_files
+            WHERE content_hash IN (
+                SELECT content_hash
+                FROM media_files
+                WHERE content_hash IS NOT NULL
+                GROUP BY content_hash
+                HAVING COUNT(*) > 1
+            )
+        """;
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        return 0;
+    }
 }

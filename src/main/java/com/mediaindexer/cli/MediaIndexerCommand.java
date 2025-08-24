@@ -39,19 +39,19 @@ public class MediaIndexerCommand implements Callable<Integer> {
                 description = "Add a root path to be scanned")
         private String addRoot;
         
-        @Option(names = {"--fast"}, 
+        @Option(names = {"--quick-scan", "--quick"}, 
                 description = "Scan filesystem roots using basic fast hashes")
-        private boolean fast;
+        private boolean quickScan;
         
-        @Option(names = {"--content-hash"}, 
+        @Option(names = {"--content-hash", "--hash"}, 
                 description = "Generate full content hashes for scanned files")
         private boolean contentHash;
         
-        @Option(names = {"--scan-full"}, 
+        @Option(names = {"--full-scan", "--full"}, 
                 description = "Scan filesystem and generate both quick and content hashes")
-        private boolean scanFull;
+        private boolean fullScan;
         
-        @Option(names = {"--thumbnails"}, 
+        @Option(names = {"--thumbnails", "--tn"}, 
                 description = "Generate both thumbnails and mini thumbnails")
         private boolean thumbnails;
         
@@ -91,16 +91,16 @@ public class MediaIndexerCommand implements Callable<Integer> {
             DatabaseService databaseService = null;
             try {
                 databaseService = new DatabaseService(config.getDatabasePath());
-                if (operationMode.fast) {
-                    return handleFastScan(config, databaseService);
+                if (operationMode.quickScan) {
+                    return handleQuickScan(config, databaseService);
                 }
                 
                 if (operationMode.contentHash) {
                     return handleContentHash(config, databaseService);
                 }
                 
-                if (operationMode.scanFull) {
-                    return handleScanFull(config, databaseService);
+                if (operationMode.fullScan) {
+                    return handleFullScan(config, databaseService);
                 }
                 
                 if (operationMode.thumbnails) {
@@ -146,8 +146,8 @@ public class MediaIndexerCommand implements Callable<Integer> {
         return 0;
     }
     
-    private Integer handleFastScan(MediaIndexerConfig config, DatabaseService databaseService) throws Exception {
-        logger.info("Starting fast scan operation");
+    private Integer handleQuickScan(MediaIndexerConfig config, DatabaseService databaseService) throws Exception {
+        logger.info("Starting quick scan operation");
         
         FileScanner fileScanner = new FileScanner(databaseService, config);
         fileScanner.scanAllRoots();
@@ -155,7 +155,7 @@ public class MediaIndexerCommand implements Callable<Integer> {
         HashingService hashingService = new HashingService(databaseService, config);
         hashingService.generateQuickHashes();
         
-        System.out.printf("Fast scan completed. Scanned %d files, processed %d files.%n", 
+        System.out.printf("Quick scan completed. Scanned %d files, processed %d files.%n", 
                          fileScanner.getScannedCount(), fileScanner.getProcessedCount());
         return 0;
     }
@@ -172,7 +172,7 @@ public class MediaIndexerCommand implements Callable<Integer> {
         return 0;
     }
     
-    private Integer handleScanFull(MediaIndexerConfig config, DatabaseService databaseService) throws Exception {
+    private Integer handleFullScan(MediaIndexerConfig config, DatabaseService databaseService) throws Exception {
         logger.info("Starting full scan operation");
         
         FileScanner fileScanner = new FileScanner(databaseService, config);
@@ -217,6 +217,10 @@ public class MediaIndexerCommand implements Callable<Integer> {
         long mediaFiles = databaseService.getMediaFileCount();
         long thumbnails = databaseService.getThumbnailCount();
         long miniThumbnails = databaseService.getMiniThumbnailCount();
+        long quickHashDuplicateGroups = databaseService.getQuickHashDuplicateCount();
+        long quickHashDuplicateFiles = databaseService.getQuickHashDuplicateFileCount();
+        long contentHashDuplicateGroups = databaseService.getContentHashDuplicateCount();
+        long contentHashDuplicateFiles = databaseService.getContentHashDuplicateFileCount();
         
         System.out.println("\n=== Media Indexer Status ===");
         System.out.println("Configuration file: " + (configPath != null ? configPath : "media-indexer-config.yaml"));
@@ -233,6 +237,20 @@ public class MediaIndexerCommand implements Callable<Integer> {
         System.out.println("  Media Files: " + mediaFiles);
         System.out.println("  Thumbnails: " + thumbnails);
         System.out.println("  Mini Thumbnails: " + miniThumbnails);
+        System.out.println();
+        
+        System.out.println("Duplicate Analysis:");
+        if (quickHashDuplicateGroups > 0) {
+            System.out.println("  Quick Hash Duplicates: " + quickHashDuplicateGroups + " groups (" + quickHashDuplicateFiles + " files)");
+        } else {
+            System.out.println("  Quick Hash Duplicates: None found");
+        }
+        
+        if (contentHashDuplicateGroups > 0) {
+            System.out.println("  Content Hash Duplicates: " + contentHashDuplicateGroups + " groups (" + contentHashDuplicateFiles + " files)");
+        } else {
+            System.out.println("  Content Hash Duplicates: None found (run --content-hash to analyze)");
+        }
         System.out.println();
         
         System.out.println("Output Directories:");

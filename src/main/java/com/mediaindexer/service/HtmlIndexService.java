@@ -169,7 +169,7 @@ public class HtmlIndexService {
 
             return String.format(
                 "<div class=\"thumbnail-container\">" +
-                "<a href=\"%s\" title=\"%s\">" +
+                "<a href=\"%s\" title=\"%s\" target=\"_blank\" rel=\"noopener\">" +
                 "%s" +
                 "</a>" +
                 "</div>\n",
@@ -182,7 +182,7 @@ public class HtmlIndexService {
             String linkContent = safeTitle.isBlank() ? "Open file" : safeTitle;
             return String.format(
                 "<div class=\"thumbnail-container\">" +
-                "<a href=\"%s\" title=\"%s\">" +
+                "<a href=\"%s\" title=\"%s\" target=\"_blank\" rel=\"noopener\">" +
                 "<span>%s</span>" +
                 "</a>" +
                 "</div>\n",
@@ -287,11 +287,44 @@ public class HtmlIndexService {
                     .thumbnail-container a {
                         display: block;
                         text-decoration: none;
+                        cursor: pointer;
+                        position: relative;
                     }
 
                     .thumbnail-container a:focus {
                         outline: 2px solid #007bff;
                         outline-offset: 2px;
+                    }
+
+                    .thumbnail-container a:hover::after {
+                        content: '🔗 Click to open file';
+                        position: absolute;
+                        bottom: -25px;
+                        left: 50%%;
+                        transform: translateX(-50%%);
+                        background: rgba(0, 0, 0, 0.8);
+                        color: white;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                        font-size: 12px;
+                        white-space: nowrap;
+                        z-index: 1000;
+                        pointer-events: none;
+                    }
+
+                    .info-notice {
+                        background: #e7f3ff;
+                        border: 1px solid #b3d9ff;
+                        border-radius: 5px;
+                        padding: 15px;
+                        margin: 20px auto;
+                        max-width: 800px;
+                        font-size: 14px;
+                        color: #0066cc;
+                    }
+
+                    .info-notice strong {
+                        color: #004499;
                     }
 
                     @media (max-width: 768px) {
@@ -312,6 +345,12 @@ public class HtmlIndexService {
                 <div class="header">
                     <h1>Media Index</h1>
                     <p>Page %d of %d</p>
+                </div>
+
+                <div class="info-notice">
+                    <strong>💡 How to open files:</strong> Click on any thumbnail to open the original file in your system's default application.
+                    If links don't work in your browser, try opening this HTML file locally or using a different browser.
+                    Some browsers restrict file:// protocol access for security reasons.
                 </div>
 
                 %s

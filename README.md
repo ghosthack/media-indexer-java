@@ -7,8 +7,10 @@ A cross-platform media indexing solution designed to traverse specified director
 - **Cross-platform**: Runs on macOS, Windows, and Linux
 - **Incremental operations**: Only processes new or changed files
 - **Duplicate detection**: Uses both quick and content hashes to identify duplicates
-- **Thumbnail generation**: Creates both full thumbnails and mini thumbnails
+- **Thumbnail generation**: Creates both full thumbnails and mini thumbnails with configurable formats
+- **Placeholder thumbnails**: Generates visual placeholders for failed thumbnail generation
 - **HTML index**: Generates paginated HTML galleries with embedded thumbnails
+- **Diagnostic tools**: Built-in commands to identify and troubleshoot processing failures
 - **Configurable**: YAML-based configuration system
 - **Resilient**: Handles filesystem loops, symlinks, and junction points safely
 
@@ -48,16 +50,20 @@ java -jar target/media-indexer-1.0.0.jar --add-root "/path/to/videos"
 
 ### 3. Scan Files
 
-Perform a fast scan (metadata + quick hashes):
+Perform a quick scan (metadata + quick hashes):
 
 ```bash
-java -jar target/media-indexer-1.0.0.jar --fast
+java -jar target/media-indexer-1.0.0.jar --quick-scan
+# or use the short form:
+java -jar target/media-indexer-1.0.0.jar --quick
 ```
 
 Or perform a full scan (metadata + quick hashes + content hashes):
 
 ```bash
-java -jar target/media-indexer-1.0.0.jar --scan-full
+java -jar target/media-indexer-1.0.0.jar --full-scan
+# or use the short form:
+java -jar target/media-indexer-1.0.0.jar --full
 ```
 
 ### 4. Generate Content Hashes
@@ -66,6 +72,8 @@ Generate full content hashes for duplicate detection:
 
 ```bash
 java -jar target/media-indexer-1.0.0.jar --content-hash
+# or use the short form:
+java -jar target/media-indexer-1.0.0.jar --hash
 ```
 
 ### 5. Create Thumbnails
@@ -74,6 +82,8 @@ Generate thumbnails and mini thumbnails:
 
 ```bash
 java -jar target/media-indexer-1.0.0.jar --thumbnails
+# or use the short form:
+java -jar target/media-indexer-1.0.0.jar --tn
 ```
 
 ### 6. Generate HTML Index
@@ -82,6 +92,22 @@ Create browsable HTML pages:
 
 ```bash
 java -jar target/media-indexer-1.0.0.jar --html
+```
+
+### 7. Check Status
+
+View database statistics and processing status:
+
+```bash
+java -jar target/media-indexer-1.0.0.jar --status
+```
+
+### 8. Run Diagnostics
+
+List files that failed thumbnail generation with detailed error information:
+
+```bash
+java -jar target/media-indexer-1.0.0.jar --diagnostic
 ```
 
 ## Configuration
@@ -103,15 +129,17 @@ scanRoots:
 thumbnail:
   maxDimension: 512
   quality: 0.85
-  format: "JPEG"
+  format: "JPEG"                    # Supported: JPEG, PNG, WebP, AVIF, JPEG XL
   respectExifOrientation: true
+  generatePlaceholders: true        # Generate placeholder images for failed thumbnails
 
 # Mini thumbnail settings
 miniThumbnail:
   maxHeight: 100
   quality: 0.85
-  format: "JPEG"
+  format: "JPEG"                    # Supported: JPEG, PNG, WebP, AVIF, JPEG XL
   respectExifOrientation: true
+  generatePlaceholders: true        # Generate placeholder images for failed thumbnails
 
 # HTML output settings
 html:
@@ -131,18 +159,20 @@ performance:
 
 ## Command Line Options
 
-| Option              | Description                             |
-|---------------------|-----------------------------------------|
-| `--bootstrap`       | Create a default configuration file     |
-| `--add-root PATH`   | Add a directory to scan                 |
-| `--fast`            | Scan filesystem using quick hashes      |
-| `--content-hash`    | Generate full content hashes            |
-| `--scan-full`       | Full scan with both hash types          |
-| `--thumbnails`      | Generate thumbnails and mini thumbnails |
-| `--html`            | Generate HTML index pages               |
-| `-c, --config PATH` | Specify configuration file path         |
-| `-h, --help`        | Show help message                       |
-| `-V, --version`     | Show version information                |
+| Option                    | Alias      | Description                                    |
+|---------------------------|------------|------------------------------------------------|
+| `--bootstrap`            |            | Create a default configuration file           |
+| `--add-root PATH`        |            | Add a directory to scan                        |
+| `--quick-scan`           | `--quick`  | Scan filesystem using quick hashes            |
+| `--content-hash`         | `--hash`   | Generate full content hashes                   |
+| `--full-scan`            | `--full`   | Full scan with both hash types                 |
+| `--thumbnails`           | `--tn`     | Generate thumbnails and mini thumbnails        |
+| `--html`                 |            | Generate HTML index pages                      |
+| `--status`               |            | Show database statistics and processing status |
+| `--diagnostic`           |            | List files with thumbnail generation failures  |
+| `-c, --config PATH`      |            | Specify configuration file path                |
+| `-h, --help`             |            | Show help message                              |
+| `-V, --version`          |            | Show version information                       |
 
 ## Workflow
 
@@ -156,26 +186,33 @@ A typical workflow might look like:
 
 2. **Full processing**:
    ```bash
-   java -jar media-indexer.jar --scan-full
+   java -jar media-indexer.jar --full-scan
    java -jar media-indexer.jar --thumbnails
    java -jar media-indexer.jar --html
    ```
 
 3. **Incremental updates** (after adding new photos):
    ```bash
-   java -jar media-indexer.jar --fast
+   java -jar media-indexer.jar --quick-scan
    java -jar media-indexer.jar --thumbnails
    java -jar media-indexer.jar --html
+   ```
+
+4. **Status check and diagnostics**:
+   ```bash
+   java -jar media-indexer.jar --status
+   java -jar media-indexer.jar --diagnostic  # if issues found
    ```
 
 ## Output
 
 The system generates:
 
-- **SQLite database**: `media-index.db` (or configured path)
-- **Thumbnails**: Individual JPEG files in `output/thumbnails/`
-- **HTML index**: Paginated HTML files in `output/html/`
-- **Log file**: `media-indexer.log`
+- **SQLite database**: `media-index.db` (or configured path) with comprehensive metadata
+- **Thumbnails**: Individual image files in `output/thumbnails/` (format configurable: JPEG, PNG, WebP, etc.)
+- **Placeholder thumbnails**: Visual error indicators for files that couldn't be processed
+- **HTML index**: Paginated HTML files in `output/html/` with clickable thumbnails
+- **Log file**: `media-indexer.log` with detailed processing information
 
 ## Performance Considerations
 

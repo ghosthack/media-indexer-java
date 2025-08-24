@@ -98,7 +98,7 @@ public class ThumbnailService {
             return;
         }
         
-        String thumbnailFileName = mediaFile.getId() + ".jpg";
+        String thumbnailFileName = mediaFile.getId() + "." + config.getThumbnail().getFormat().toLowerCase();
         Path thumbnailPath = Paths.get(config.getThumbnailOutputDir(), thumbnailFileName);
         
         if (Files.exists(thumbnailPath)) {
@@ -113,14 +113,24 @@ public class ThumbnailService {
                 String errorMsg = String.format("Image decoding failed: unsupported format or corrupted file - %s", inputPath);
                 logger.warn("Could not decode image file (unsupported format or corrupted): {} [Format: {}]", 
                     inputPath, mediaFile.getExtension());
-                saveThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.DECODING_ERROR);
+                
+                if (config.getThumbnail().isGeneratePlaceholders()) {
+                    generatePlaceholderThumbnail(mediaFile, thumbnailPath, ThumbnailErrorType.DECODING_ERROR);
+                } else {
+                    saveThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.DECODING_ERROR);
+                }
                 return;
             }
         } catch (IOException e) {
             String errorMsg = String.format("Image reading failed (I/O error): %s - %s", inputPath, e.getMessage());
             logger.warn("Could not read image file (I/O error): {} - {} [Cause: {}]", 
                 inputPath, e.getMessage(), e.getClass().getSimpleName());
-            saveThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.IO_ERROR);
+            
+            if (config.getThumbnail().isGeneratePlaceholders()) {
+                generatePlaceholderThumbnail(mediaFile, thumbnailPath, ThumbnailErrorType.IO_ERROR);
+            } else {
+                saveThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.IO_ERROR);
+            }
             return;
         }
         
@@ -129,7 +139,7 @@ public class ThumbnailService {
         
         BufferedImage thumbnail = createThumbnail(rotatedImage, config.getThumbnail().getMaxDimension());
         
-        writeImageToFile(thumbnail, thumbnailPath.toFile(), "JPEG", config.getThumbnail().getQuality());
+        writeImageToFile(thumbnail, thumbnailPath.toFile(), config.getThumbnail().getFormat(), config.getThumbnail().getQuality());
         
         Thumbnail thumbnailRecord = new Thumbnail(
             mediaFile.getId(),
@@ -137,7 +147,7 @@ public class ThumbnailService {
             thumbnail.getWidth(),
             thumbnail.getHeight(),
             orientation,
-            "JPEG"
+            config.getThumbnail().getFormat()
         );
         
         databaseService.saveThumbnail(thumbnailRecord);
@@ -158,14 +168,24 @@ public class ThumbnailService {
                 String errorMsg = String.format("Image decoding failed: unsupported format or corrupted file - %s", inputPath);
                 logger.warn("Could not decode image file (unsupported format or corrupted): {} [Format: {}]", 
                     inputPath, mediaFile.getExtension());
-                saveMiniThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.DECODING_ERROR);
+                
+                if (config.getMiniThumbnail().isGeneratePlaceholders()) {
+                    generatePlaceholderMiniThumbnail(mediaFile, ThumbnailErrorType.DECODING_ERROR);
+                } else {
+                    saveMiniThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.DECODING_ERROR);
+                }
                 return;
             }
         } catch (IOException e) {
             String errorMsg = String.format("Image reading failed (I/O error): %s - %s", inputPath, e.getMessage());
             logger.warn("Could not read image file (I/O error): {} - {} [Cause: {}]", 
                 inputPath, e.getMessage(), e.getClass().getSimpleName());
-            saveMiniThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.IO_ERROR);
+            
+            if (config.getMiniThumbnail().isGeneratePlaceholders()) {
+                generatePlaceholderMiniThumbnail(mediaFile, ThumbnailErrorType.IO_ERROR);
+            } else {
+                saveMiniThumbnailFailure(mediaFile.getId(), errorMsg, ThumbnailErrorType.IO_ERROR);
+            }
             return;
         }
         
@@ -174,7 +194,7 @@ public class ThumbnailService {
         
         BufferedImage miniThumbnail = createMiniThumbnail(rotatedImage, config.getMiniThumbnail().getMaxHeight());
         
-        String base64Data = encodeImageToBase64(miniThumbnail, "JPEG", config.getMiniThumbnail().getQuality());
+        String base64Data = encodeImageToBase64(miniThumbnail, config.getMiniThumbnail().getFormat(), config.getMiniThumbnail().getQuality());
         
         MiniThumbnail miniThumbnailRecord = new MiniThumbnail(
             mediaFile.getId(),
@@ -182,7 +202,7 @@ public class ThumbnailService {
             miniThumbnail.getWidth(),
             miniThumbnail.getHeight(),
             orientation,
-            "JPEG"
+            config.getMiniThumbnail().getFormat()
         );
         
         databaseService.saveMiniThumbnail(miniThumbnailRecord);
@@ -383,5 +403,130 @@ public class ThumbnailService {
         );
         
         databaseService.saveMiniThumbnail(miniThumbnailRecord);
+    }
+    
+    private void generatePlaceholderThumbnail(MediaFile mediaFile, Path thumbnailPath, ThumbnailErrorType errorType) throws SQLException, IOException {
+        BufferedImage placeholder = createPlaceholderImage(
+            config.getThumbnail().getMaxDimension(), 
+            config.getThumbnail().getMaxDimension(),
+            mediaFile.getExtension(),
+            errorType
+        );
+        
+        writeImageToFile(placeholder, thumbnailPath.toFile(), config.getThumbnail().getFormat(), config.getThumbnail().getQuality());
+        
+        Thumbnail thumbnailRecord = new Thumbnail(
+            mediaFile.getId(),
+            thumbnailPath.toString(),
+            placeholder.getWidth(),
+            placeholder.getHeight(),
+            1,
+            config.getThumbnail().getFormat(),
+            true,
+            "Placeholder generated for " + errorType.getDescription(),
+            errorType.getCode()
+        );
+        
+        databaseService.saveThumbnail(thumbnailRecord);
+        logger.debug("Generated placeholder thumbnail for file: {}", mediaFile.getFilePath());
+    }
+    
+    private void generatePlaceholderMiniThumbnail(MediaFile mediaFile, ThumbnailErrorType errorType) throws SQLException, IOException {
+        int width = (int) (config.getMiniThumbnail().getMaxHeight() * 1.5); // 3:2 aspect ratio
+        BufferedImage placeholder = createPlaceholderImage(
+            width,
+            config.getMiniThumbnail().getMaxHeight(),
+            mediaFile.getExtension(),
+            errorType
+        );
+        
+        String base64Data = encodeImageToBase64(placeholder, config.getMiniThumbnail().getFormat(), config.getMiniThumbnail().getQuality());
+        
+        MiniThumbnail miniThumbnailRecord = new MiniThumbnail(
+            mediaFile.getId(),
+            base64Data,
+            placeholder.getWidth(),
+            placeholder.getHeight(),
+            1,
+            config.getMiniThumbnail().getFormat(),
+            true,
+            "Placeholder generated for " + errorType.getDescription(),
+            errorType.getCode()
+        );
+        
+        databaseService.saveMiniThumbnail(miniThumbnailRecord);
+        logger.debug("Generated placeholder mini thumbnail for file: {}", mediaFile.getFilePath());
+    }
+    
+    private BufferedImage createPlaceholderImage(int width, int height, String fileExtension, ThumbnailErrorType errorType) {
+        BufferedImage placeholder = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = placeholder.createGraphics();
+        
+        // Set rendering hints for better quality
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        
+        // Background color based on error type
+        Color backgroundColor;
+        Color textColor;
+        switch (errorType) {
+            case IO_ERROR -> {
+                backgroundColor = new Color(220, 53, 69); // Bootstrap danger red
+                textColor = Color.WHITE;
+            }
+            case DECODING_ERROR -> {
+                backgroundColor = new Color(255, 193, 7); // Bootstrap warning yellow
+                textColor = Color.BLACK;
+            }
+            default -> {
+                backgroundColor = new Color(108, 117, 125); // Bootstrap secondary gray
+                textColor = Color.WHITE;
+            }
+        }
+        
+        // Fill background
+        g2d.setColor(backgroundColor);
+        g2d.fillRect(0, 0, width, height);
+        
+        // Draw border
+        g2d.setColor(textColor);
+        g2d.setStroke(new BasicStroke(2));
+        g2d.drawRect(1, 1, width - 2, height - 2);
+        
+        // Calculate font size based on image size
+        int fontSize = Math.max(12, Math.min(width / 8, height / 6));
+        Font font = new Font("Arial", Font.BOLD, fontSize);
+        g2d.setFont(font);
+        
+        // Draw error icon (simplified X or !)
+        g2d.setColor(textColor);
+        int iconSize = Math.min(width / 3, height / 3);
+        int iconX = width / 2 - iconSize / 2;
+        int iconY = height / 3 - iconSize / 2;
+        
+        if (errorType == ThumbnailErrorType.IO_ERROR) {
+            // Draw X
+            g2d.setStroke(new BasicStroke(4));
+            g2d.drawLine(iconX, iconY, iconX + iconSize, iconY + iconSize);
+            g2d.drawLine(iconX + iconSize, iconY, iconX, iconY + iconSize);
+        } else {
+            // Draw !
+            g2d.setStroke(new BasicStroke(6));
+            g2d.drawLine(iconX + iconSize / 2, iconY, iconX + iconSize / 2, iconY + iconSize * 2 / 3);
+            g2d.fillOval(iconX + iconSize / 2 - 3, iconY + iconSize * 3 / 4, 6, 6);
+        }
+        
+        // Draw file extension if available
+        if (fileExtension != null && !fileExtension.isEmpty()) {
+            FontMetrics fm = g2d.getFontMetrics();
+            String extText = fileExtension.toUpperCase();
+            int textWidth = fm.stringWidth(extText);
+            int textX = width / 2 - textWidth / 2;
+            int textY = height * 2 / 3 + fm.getAscent();
+            g2d.drawString(extText, textX, textY);
+        }
+        
+        g2d.dispose();
+        return placeholder;
     }
 }

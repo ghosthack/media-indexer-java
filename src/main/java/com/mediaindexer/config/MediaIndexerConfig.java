@@ -20,6 +20,7 @@ public class MediaIndexerConfig {
         private float quality = 0.85f;
         private String format = "JPEG";
         private boolean respectExifOrientation = true;
+        private boolean generatePlaceholders = true;
         
         public int getMaxDimension() { return maxDimension; }
         public void setMaxDimension(int maxDimension) { this.maxDimension = maxDimension; }
@@ -32,6 +33,9 @@ public class MediaIndexerConfig {
         
         public boolean isRespectExifOrientation() { return respectExifOrientation; }
         public void setRespectExifOrientation(boolean respectExifOrientation) { this.respectExifOrientation = respectExifOrientation; }
+        
+        public boolean isGeneratePlaceholders() { return generatePlaceholders; }
+        public void setGeneratePlaceholders(boolean generatePlaceholders) { this.generatePlaceholders = generatePlaceholders; }
     }
     
     public static class MiniThumbnailConfig {
@@ -39,6 +43,7 @@ public class MediaIndexerConfig {
         private float quality = 0.85f;
         private String format = "JPEG";
         private boolean respectExifOrientation = true;
+        private boolean generatePlaceholders = true;
         
         public int getMaxHeight() { return maxHeight; }
         public void setMaxHeight(int maxHeight) { this.maxHeight = maxHeight; }
@@ -51,6 +56,9 @@ public class MediaIndexerConfig {
         
         public boolean isRespectExifOrientation() { return respectExifOrientation; }
         public void setRespectExifOrientation(boolean respectExifOrientation) { this.respectExifOrientation = respectExifOrientation; }
+        
+        public boolean isGeneratePlaceholders() { return generatePlaceholders; }
+        public void setGeneratePlaceholders(boolean generatePlaceholders) { this.generatePlaceholders = generatePlaceholders; }
     }
     
     public static class HtmlConfig {
